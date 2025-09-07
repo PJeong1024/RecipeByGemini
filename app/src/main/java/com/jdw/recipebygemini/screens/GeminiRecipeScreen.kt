@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
@@ -53,12 +54,9 @@ fun HomeScreen(
 @Composable
 fun DisplayResult(navController: NavController, viewModel: MainViewModel) {
     val context = LocalContext.current
-    val isLoading = remember { mutableStateOf(false) }
+    val outputData = viewModel.outputData.collectAsState().value
     val dishList = viewModel.dishes.collectAsState().value.dish_list
-    val loadingState = viewModel.outputData.collectAsState().value.loading
     val inputString = remember { mutableStateOf("") }
-
-    if (loadingState == false) isLoading.value = false
 
     Column(
         modifier = Modifier
@@ -79,26 +77,35 @@ fun DisplayResult(navController: NavController, viewModel: MainViewModel) {
             onClick = {
                 if (inputString.value.isNotEmpty()) {
                     viewModel.getRecipes(inputString.value)
-                    isLoading.value = true
                 } else {
-                    Toast.makeText(
-                        context, "Please input the ingredient list", Toast.LENGTH_SHORT
-                    ).show()
+                    Toast.makeText(context, "Please input the ingredient list", Toast.LENGTH_SHORT)
+                        .show()
                 }
             },
-            enabled = loadingState == false
+            enabled = outputData.loading != true
         ) {
             Text(text = "Ask the recipe", fontSize = 20.sp)
         }
 
         Spacer(modifier = Modifier.padding(10.dp))
 
-        if (isLoading.value) {
-            CircularProgressIndicator()
-        } else {
-            if (dishList.isEmpty()) {
+        when {
+            outputData.loading == true -> {
+                CircularProgressIndicator()
+            }
+
+            outputData.e != null -> {
+                Text(
+                    text = "⚠ 오류: ${outputData.e?.message ?: "Unknown error"}",
+                    color = Color.Red
+                )
+            }
+
+            dishList.isEmpty() -> {
                 Text(text = "There's no recipe from Gemini")
-            } else {
+            }
+
+            else -> {
                 LazyColumn(modifier = Modifier.padding(10.dp)) {
                     items(dishList) { dish ->
                         DishCard(dish, viewModel, context = context, isFromDB = false)

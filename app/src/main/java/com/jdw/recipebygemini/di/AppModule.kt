@@ -44,7 +44,7 @@ object AppModule {
     @Provides
     fun provideGeminiApiGenerativeModel(): GenerativeModel {
         return GenerativeModel(
-            modelName = "gemini-pro",
+            modelName = "models/gemini-1.5-pro",
             apiKey = BuildConfig.GEMINI_API_KEY
         )
     }

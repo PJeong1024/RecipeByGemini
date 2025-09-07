@@ -74,6 +74,7 @@ class MainViewModel @Inject constructor(
                     _outputData.value.loading = false
                 }
             } catch (e: Exception) {
+                Log.e("GeminiTest", "에러 발생: ${e.message}")
                 _outputData.value.e = e
                 _outputData.value.loading = false
             }
@@ -82,21 +83,28 @@ class MainViewModel @Inject constructor(
 
     fun getRecipes(ingredients: String) {
         viewModelScope.launch {
+            _outputData.value = DataOrException(data = null, loading = true, e = null)
             try {
                 val inputText = Constants.BASEMENT_TEXT + ingredients
-                _outputData.value.loading = true
-                _outputData.value.data = generativeModel.generateContent(inputText).text
-                if (!_outputData.value.data.isNullOrEmpty()) {
-                    Log.d("getRecipes", "succeed to received : ${_outputData.value.data} ")
-                    _dishes.value = Gson().fromJson(
-                        _outputData.value.data.toString().replace("json", "", ignoreCase = true)
-                            .replace("```", ""), DishList::class.java
-                    )
-                    _outputData.value.loading = false
+                val responseText = generativeModel.generateContent(inputText).text?.replace("json", "", true)?.replace("```", "")
+
+                if (responseText.isNullOrBlank()) {
+                    _outputData.value = DataOrException(data = null, loading = false, e = IllegalStateException("응답이 비어 있습니다."))
+                    return@launch
                 }
+
+                val parsed = Gson().fromJson(responseText, DishList::class.java)
+                if (parsed?.dish_list.isNullOrEmpty()) {
+                    _outputData.value = DataOrException(data = null, loading = false, e = IllegalArgumentException("레시피 목록이 없습니다."))
+                    return@launch
+                }
+
+                _dishes.value = parsed
+                _outputData.value = DataOrException(data = responseText, loading = false, e = null)
+
             } catch (e: Exception) {
-                _outputData.value.e = e
-                _outputData.value.loading = false
+                Log.e("getRecipes", "Gemini API 오류: ${e.message}", e)
+                _outputData.value = DataOrException(data = null, loading = false, e = e)
             }
         }
     }
